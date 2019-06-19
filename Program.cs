@@ -64,7 +64,7 @@ namespace kdb3
         }
     }
 
-    interface IndexTable
+    interface IIndexTable
     {
         void Put(string key, DataPointer dataPointer);
         DataPointer Get(string key);
@@ -72,7 +72,7 @@ namespace kdb3
 	IDictionary GetStore();
     }
     
-    class MemTable : IndexTable
+    class MemTable : IIndexTable
     {        
         private readonly KDB _kDB;        
         private bool _persisted = false;
@@ -118,7 +118,7 @@ namespace kdb3
         }
     }
 
-    class SSTable : IndexTable
+    class SSTable : IIndexTable
     {
         private readonly SortedList<string, DataPointer> _store;
         private readonly KDB _kDB;
@@ -182,11 +182,11 @@ namespace kdb3
     }
 
     class IndexTableIterator {
-        private IndexTable _indexTable = null;
+        private IIndexTable _indexTable = null;
 	private IDictionaryEnumerator _enumerator = null;
         private bool exists = false;
         
-	public IndexTableIterator (IndexTable indexTable, int priority) {
+	public IndexTableIterator (IIndexTable indexTable, int priority) {
             this._indexTable = indexTable;
 	    this._enumerator = indexTable.GetStore().GetEnumerator();
 	    exists = this._enumerator.MoveNext();
@@ -215,7 +215,7 @@ namespace kdb3
         private SortedDictionary<string, IndexTableIterator> _mergeList = new SortedDictionary<string, IndexTableIterator>();
         private List<IndexTableIterator> _indexTableIterators = new List<IndexTableIterator>();
         
-	public MergeIndexTableIterator(LinkedList<IndexTable> linkedList) {
+	public MergeIndexTableIterator(LinkedList<IIndexTable> linkedList) {
             var item = linkedList.First;
             int len = linkedList.Count;
             while (item != null)
@@ -275,7 +275,7 @@ namespace kdb3
     class IndexManager
     {
         private MemTable _memTable = null;
-        private LinkedList<IndexTable> _dlinkedList = null;
+        private LinkedList<IIndexTable> _dlinkedList = null;
         private int _lastIndexFileNumber = 0;
         private readonly KDB _kDB;        
 
@@ -284,7 +284,7 @@ namespace kdb3
             _kDB = kDB ?? throw new ArgumentNullException(nameof(kDB));
             _lastIndexFileNumber = GetLastFileNumber();
 
-            _dlinkedList = new LinkedList<IndexTable>();
+            _dlinkedList = new LinkedList<IIndexTable>();
 
             LoadSSTables();
 
