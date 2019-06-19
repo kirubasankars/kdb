@@ -11,8 +11,6 @@ namespace kdb3
     {
         static void Main(string[] args)
         {
-
-            
             while(true) {
                 
                 var kdb = new KDB(".");
@@ -65,6 +63,7 @@ namespace kdb3
             _postion = postion;
         }
     }
+
     interface IndexTable
     {
         void Put(string key, DataPointer dataPointer);
@@ -184,12 +183,13 @@ namespace kdb3
 
     class IndexTableIterator {
         private IndexTable _indexTable = null;
-	    private IDictionaryEnumerator _enumerator = null;
+	private IDictionaryEnumerator _enumerator = null;
         private bool exists = false;
-        public IndexTableIterator (IndexTable indexTable, int priority) {
+        
+	public IndexTableIterator (IndexTable indexTable, int priority) {
             this._indexTable = indexTable;
-	        this._enumerator = indexTable.GetStore().GetEnumerator();
-	        exists = this._enumerator.MoveNext();
+	    this._enumerator = indexTable.GetStore().GetEnumerator();
+	    exists = this._enumerator.MoveNext();
             this.Priority = priority;
         }
 
@@ -214,7 +214,8 @@ namespace kdb3
     class MergeIndexTableIterator {
         private SortedDictionary<string, IndexTableIterator> _mergeList = new SortedDictionary<string, IndexTableIterator>();
         private List<IndexTableIterator> _indexTableIterators = new List<IndexTableIterator>();
-        public MergeIndexTableIterator(LinkedList<IndexTable> linkedList) {
+        
+	public MergeIndexTableIterator(LinkedList<IndexTable> linkedList) {
             var item = linkedList.First;
             int len = linkedList.Count;
             while (item != null)
@@ -392,6 +393,7 @@ namespace kdb3
         }
 
     }
+
     class DataStorage
     {
         private readonly KDB kDB;
@@ -449,6 +451,7 @@ namespace kdb3
             _dataFileWriter.Close();
         }
     }
+
     class IndexStorage
     {
         private readonly KDB _kDB;
