@@ -26,10 +26,13 @@ namespace kdb3
 
                 if(input == "1") {
                     var inputKey = Console.ReadLine();
-                    Console.WriteLine(Encoding.ASCII.GetString(kdb.Get(inputKey)));
+                    Console.WriteLine("Key : " + Encoding.ASCII.GetString(kdb.Get(inputKey)));
+                    Console.WriteLine("Val : " + Encoding.ASCII.GetString(kdb.Get(inputKey)));
                 } 
                 if(input == "2") {
+                    Console.Write("Enter Key : ");
                     var inputKey = Console.ReadLine();
+                    Console.Write("Enter Val : ");
                     var inputValue = Console.ReadLine();
                     kdb.Put(inputKey, Encoding.ASCII.GetBytes(inputValue));
                     
@@ -39,8 +42,8 @@ namespace kdb3
                     while(true) {
                         var key = iterator.Next();
                         if (key == null) { break; }
-                        Console.WriteLine("key : " + key);
-                        Console.WriteLine("val : " + Encoding.ASCII.GetString(kdb.Get(key)));
+                        Console.WriteLine("Key : " + key);
+                        Console.WriteLine("Val : " + Encoding.ASCII.GetString(kdb.Get(key)));
                     }
                 } 
 
