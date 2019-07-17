@@ -14,7 +14,9 @@ namespace kdb3
             while(true) {
                 
                 var kdb = new KDB(".");
+                //kdb.Optimize();
 
+                //break;
 
                 Console.WriteLine("...........");
                 Console.WriteLine("1. Get Key");
@@ -26,7 +28,7 @@ namespace kdb3
 
                 if(input == "1") {
                     var inputKey = Console.ReadLine();
-                    Console.WriteLine("Key : " + Encoding.ASCII.GetString(kdb.Get(inputKey)));
+                    Console.WriteLine("Key : " + inputKey);
                     Console.WriteLine("Val : " + Encoding.ASCII.GetString(kdb.Get(inputKey)));
                 } 
                 if(input == "2") {
@@ -53,12 +55,12 @@ namespace kdb3
         }
     }
 
-    struct DataPointer
+    struct FencePointer
     {
         public string _key;
         public int _keyLen, _valueLen;
         public long _postion;
-        public DataPointer(string key, int keyLen, int valueLen, long postion)
+        public FencePointer(string key, int keyLen, int valueLen, long postion)
         {
             _key = key;
             _keyLen = keyLen;
@@ -69,8 +71,8 @@ namespace kdb3
 
     interface IIndexTable
     {
-        void Put(string key, DataPointer dataPointer);
-        DataPointer Get(string key);
+        void Put(string key, FencePointer fencePointer);
+        FencePointer Get(string key);
         int Count();
 	IDictionary GetStore();
     }
@@ -81,25 +83,25 @@ namespace kdb3
         private bool _persisted = false;
         private int _totalKeyLength = 0;
         public int TotalKeyLength { get { return _totalKeyLength; } }
-        public SortedDictionary<string, DataPointer> Store { get; private set; }
+        public SortedDictionary<string, FencePointer> Store { get; private set; }
 
         public MemTable(KDB kDB)
         {
             _kDB = kDB ?? throw new ArgumentNullException(nameof(kDB));            
-            Store = new SortedDictionary<string, DataPointer>();
+            Store = new SortedDictionary<string, FencePointer>();
         }
 
-        public void Put(string key, DataPointer dataPointer)
+        public void Put(string key, FencePointer fencePointer)
         {
-            _totalKeyLength += dataPointer._keyLen;
-            Store[key] = dataPointer;
+            _totalKeyLength += fencePointer._keyLen;
+            Store[key] = fencePointer;
         }
 
-        public DataPointer Get(string key)
+        public FencePointer Get(string key)
         {
-            DataPointer dataPointer = default(DataPointer);
-            if (Store.TryGetValue(key, out dataPointer)) return dataPointer;
-            return dataPointer;
+            FencePointer fencePointer = default(FencePointer);
+            if (Store.TryGetValue(key, out fencePointer)) return fencePointer;
+            return fencePointer;
         }
 
         public int Count()
@@ -123,25 +125,25 @@ namespace kdb3
 
     class SSTable : IIndexTable
     {
-        private readonly SortedList<string, DataPointer> _store;
+        private readonly SortedList<string, FencePointer> _store;
         private readonly KDB _kDB;
         private readonly int _fileNumber;
 
         public SSTable(KDB kDB, int fileNumber)
         {
             _kDB = kDB;
-            _store = new SortedList<string, DataPointer>();
+            _store = new SortedList<string, FencePointer>();
             _fileNumber = fileNumber;
 
             LoadFile(fileNumber);
         }
-        public DataPointer Get(string key)
+        public FencePointer Get(string key)
         {
-            DataPointer dataPointer = default(DataPointer);
-            if (_store.TryGetValue(key, out dataPointer)) return dataPointer;
-            return dataPointer;
+            FencePointer fencePointer = default(FencePointer);
+            if (_store.TryGetValue(key, out fencePointer)) return fencePointer;
+            return fencePointer;
         }
-        public void Put(string key, DataPointer dataPointer)
+        public void Put(string key, FencePointer fencePointer)
         {
             throw new NotSupportedException();
         }
@@ -175,7 +177,7 @@ namespace kdb3
                 var position = BitConverter.ToInt64(data, itemAt + 64 + (int)keyBytesLength + 1);
                 var valueLength = (int)BitConverter.ToInt64(data, itemAt + 64 + (int)keyBytesLength + 64 + 1);
 
-                _store.Add(key, new DataPointer(key, key.Length, valueLength, position));
+                _store.Add(key, new FencePointer(key, key.Length, valueLength, position));
 
                 itemAt += (64 + (int)keyBytesLength + 64 + 64 + 1);
             }
@@ -189,10 +191,10 @@ namespace kdb3
 	private IDictionaryEnumerator _enumerator = null;
         private bool exists = false;
         
-	public IndexTableIterator (IIndexTable indexTable, int priority) {
+	    public IndexTableIterator (IIndexTable indexTable, int priority) {
             this._indexTable = indexTable;
-	    this._enumerator = indexTable.GetStore().GetEnumerator();
-	    exists = this._enumerator.MoveNext();
+	        this._enumerator = indexTable.GetStore().GetEnumerator();
+	        exists = this._enumerator.MoveNext();
             this.Priority = priority;
         }
 
@@ -218,7 +220,7 @@ namespace kdb3
         private SortedDictionary<string, IndexTableIterator> _mergeList = new SortedDictionary<string, IndexTableIterator>();
         private List<IndexTableIterator> _indexTableIterators = new List<IndexTableIterator>();
         
-	public MergeIndexTableIterator(LinkedList<IIndexTable> linkedList) {
+	    public MergeIndexTableIterator(LinkedList<IIndexTable> linkedList) {
             var item = linkedList.First;
             int len = linkedList.Count;
             while (item != null)
@@ -318,7 +320,7 @@ namespace kdb3
             return values.Max();
         }
 
-        public void Put(string key, DataPointer dataPointer)
+        public void Put(string key, FencePointer fencePointer)
         {
             if (_memTable.Count() >= 100000)
             {
@@ -326,20 +328,20 @@ namespace kdb3
                 _memTable = new MemTable(_kDB);
                 _dlinkedList.AddFirst(_memTable);
             }
-            _memTable.Put(key, dataPointer);
+            _memTable.Put(key, fencePointer);
         }
 
-        public DataPointer Get(string key)
+        public FencePointer Get(string key)
         {
             var item = _dlinkedList.First;
             while (item != null)
             {
-                var dataPointer = item.Value.Get(key);
-                if (dataPointer._keyLen != 0) return dataPointer;
+                var fencePointer = item.Value.Get(key);
+                if (fencePointer._keyLen != 0) return fencePointer;
 
                 item = item.Next;
             }
-            return default(DataPointer);
+            return default(FencePointer);
         }
 
         public MergeIndexTableIterator GetAll() {
@@ -351,6 +353,7 @@ namespace kdb3
             _memTable.Persist(++_lastIndexFileNumber);
         }
     }
+    
     class KDB
     {
         private readonly DataStorage _dataStorage;
@@ -369,8 +372,8 @@ namespace kdb3
 
         public void Put(string key, byte[] value)
         {
-            var dataPointer = _dataStorage.Put(key, value);
-            _indexManager.Put(key, dataPointer);
+            var fencePointer = _dataStorage.Put(key, value);
+            _indexManager.Put(key, fencePointer);
         }
 
         public byte[] Get(string key)
@@ -386,7 +389,16 @@ namespace kdb3
 
         public void Optimize()
         {
-         
+            _indexManager.Close();
+            var iterator = this.GetAll();
+            while(true) {
+                var key = iterator.Next();
+                if (key == null) { break; }
+                Console.WriteLine("Key : " + key);
+                Console.WriteLine("Val : " + Encoding.ASCII.GetString(this.Get(key)));
+                this.Put(key, this.Get(key));
+            }
+            this.Close();
         }
 
         public void Close()
@@ -411,7 +423,7 @@ namespace kdb3
             _dataFileReader = new FileStream(this.kDB.DBPath + "/data.db", FileMode.Open, FileAccess.Read, FileShare.Write);
         }
 
-        public DataPointer Put(string key, byte[] valueBytes)
+        public FencePointer Put(string key, byte[] valueBytes)
         {
             byte[] data = new byte[64 + key.Length + valueBytes.Length + 1];
             var pos = _dataFileWriter.Length;
@@ -428,16 +440,16 @@ namespace kdb3
             _dataFileWriter.Write(data, 0, data.Length);
             _dataFileWriter.Flush();
 
-            return new DataPointer(key, key.Length, valueBytes.Length, pos);
+            return new FencePointer(key, key.Length, valueBytes.Length, pos);
         }
 
-        public byte[] Get(DataPointer dataPointer)
+        public byte[] Get(FencePointer fencePointer)
         {
-            var metaSize = 64 + dataPointer._keyLen;
-            byte[] value = new byte[dataPointer._valueLen + 1];
-            byte[] data = new byte[metaSize + dataPointer._valueLen + 1];
+            var metaSize = 64 + fencePointer._keyLen;
+            byte[] value = new byte[fencePointer._valueLen + 1];
+            byte[] data = new byte[metaSize + fencePointer._valueLen + 1];
 
-            _dataFileReader.Seek(dataPointer._postion, SeekOrigin.Begin);
+            _dataFileReader.Seek(fencePointer._postion, SeekOrigin.Begin);
             _dataFileReader.Read(data, 0, data.Length);
 
             for (int i = metaSize + 1, j = 0; i < data.Length; i++, j++)
